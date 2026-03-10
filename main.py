@@ -1,18 +1,40 @@
-from fastapi import FastAPI, status
+from typing import Annotated
 
-from schemas import ApplicationResponse
+from fastapi import Depends, FastAPI, HTTPException, status
+from sqlalchemy import and_, select
+from sqlalchemy.orm import Session
+
+import models
+from database import Base, engine, get_db
+from schemas import ApplicationCreate, ApplicationResponse, CompanyResponse
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
 
-@app.get("/api/applications", response_model=ApplicationResponse)
-def get_applications():
-    return {"Hello": "World"}
+@app.get("/api/applications", response_model=list[ApplicationResponse])
+def get_applications(db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Applications))
+
+    applications = result.scalars().all()
+    return applications
 
 
 @app.get("/api/applications/{application_id}", response_model=ApplicationResponse)
-def get_application():
-    return {"Hello": "World"}
+def get_application(application_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(
+        select(models.Applications).where(models.Applications.id == application_id)
+    )
+
+    application = result.scalars().first()
+
+    if application:
+        return application
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+    )
 
 
 @app.post(
@@ -20,8 +42,49 @@ def get_application():
     response_model=ApplicationResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_application():
-    return {"Hello": "World"}
+def create_application(
+    application: ApplicationCreate, db: Annotated[Session, Depends(get_db)]
+):
+    query = db.execute(
+        select(models.Company).where(models.Company.name == application.company)
+    )
+    company = query.scalars().first()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Company not found"
+        )
+    company_id = company.id
+
+    result = db.execute(
+        select(models.Applications).where(
+            and_(
+                models.Applications.position_title == application.position,
+                models.Applications.company_id == company_id,
+            )
+        )
+    )
+
+    exist = result.scalars().first()
+
+    if exist:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Application already exists",
+        )
+
+    new_application = models.Applications(
+        company_id=company_id,
+        position_title=application.position,
+        application_status=application.status,
+        application_date=application.application_date,
+    )
+
+    db.add(new_application)
+    db.commit()
+    db.refresh(new_application)
+
+    return new_application
 
 
 @app.put("/api/applications/{application_id}", response_model=ApplicationResponse)
@@ -29,6 +92,10 @@ def update_application():
     return {"Hello": "World"}
 
 
-@app.get("/api/companies", response_model=ApplicationResponse)
-def get_compnaies():
-    return {"Hello": "World"}
+@app.get("/api/companies", response_model=list[CompanyResponse])
+def get_compnaies(db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Company))
+
+    companies = result.scalars().all()
+
+    return companies

@@ -1,6 +1,7 @@
+from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Status(str, Enum):
@@ -12,15 +13,41 @@ class Status(str, Enum):
 
 
 class Application(BaseModel):
-    company: str = Field(min_length=3)
-    position: str = Field(min_length=3)
+    position_title: str = Field(min_length=3)
+    application_status: Status
+
+
+class Company(BaseModel):
+    name: str
+
+
+class CompanyResponse(Company):
+    pass
+
+
+class CompanyCreate(Company):
+    pass
 
 
 class ApplicationResponse(Application):
     id: int
-    status: Status
-    update_date: str
+    application_status: Status
+    update_date: datetime
+    company: str
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("company", mode="before")
+    @classmethod
+    def get_company_name(cls, v, info):
+        # This handles the 'Input should be a valid string' error
+        # by pulling the 'name' from the Company object
+        if hasattr(v, "name"):
+            return v.name
+        return v
 
 
 class ApplicationCreate(Application):
-    pass
+    position: str
+    status: Status
+    application_date: datetime
+    company: str
