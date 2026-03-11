@@ -147,7 +147,9 @@ def create_application(
     return new_application
 
 
-@app.delete("/api/applications/{application_id}", response_model=ApplicationResponse)
+@app.delete(
+    "/api/applications/{application_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def delete_application(
     application_id: int,
     db: Annotated[Session, Depends(get_db)],
@@ -168,7 +170,7 @@ def delete_application(
 
 
 @app.get("/api/companies", response_model=list[CompanyResponse])
-def get_companies(application_id: int, db: Annotated[Session, Depends(get_db)]):
+def get_companies(db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Company))
 
     companies = result.scalars().all()
@@ -212,7 +214,7 @@ def create_company(
     return new_company
 
 
-@app.put("/api/company/{company_id}", response_model=CompanyResponse)
+@app.put("/api/companies/{company_id}", response_model=CompanyResponse)
 def update_company(
     company_id: int,
     company_data: CompanyCreate,
@@ -234,7 +236,7 @@ def update_company(
     return company
 
 
-@app.delete("/api/company/{company_id}", response_model=CompanyResponse)
+@app.delete("/api/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_company(
     company_id: int,
     db: Annotated[Session, Depends(get_db)],

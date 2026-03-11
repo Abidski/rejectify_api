@@ -17,18 +17,6 @@ class Application(BaseModel):
     application_status: Status
 
 
-class Company(BaseModel):
-    name: str
-
-
-class CompanyResponse(Company):
-    pass
-
-
-class CompanyCreate(Company):
-    pass
-
-
 class ApplicationResponse(Application):
     id: int
     application_status: Status
@@ -54,3 +42,16 @@ class ApplicationCreate(Application):
 class ApplicationUpdate(Application):
     position_title: str | None = Field(default=None)
     application_status: str | None = Field(default=None)
+
+
+class Company(BaseModel):
+    name: str
+
+
+class CompanyResponse(Company):
+    pass
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CompanyCreate(Company):
+    pass
