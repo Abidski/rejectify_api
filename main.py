@@ -10,6 +10,7 @@ from schemas import (
     ApplicationCreate,
     ApplicationResponse,
     ApplicationUpdate,
+    CompanyCreate,
     CompanyResponse,
 )
 
@@ -27,7 +28,9 @@ def get_applications(db: Annotated[Session, Depends(get_db)]):
 
 
 @app.get("/api/applications/{application_id}", response_model=ApplicationResponse)
-def get_application(application_id: int, db: Annotated[Session, Depends(get_db)]):
+def get_application_individual(
+    application_id: int, db: Annotated[Session, Depends(get_db)]
+):
     result = db.execute(
         select(models.Applications).where(models.Applications.id == application_id)
     )
@@ -116,7 +119,7 @@ def create_application(
     result = db.execute(
         select(models.Applications).where(
             and_(
-                models.Applications.position_title == application.position,
+                models.Applications.position_title == application.position_title,
                 models.Applications.company_id == company_id,
             )
         )
@@ -132,8 +135,8 @@ def create_application(
 
     new_application = models.Applications(
         company_id=company_id,
-        position_title=application.position,
-        application_status=application.status,
+        position_title=application.position_title,
+        application_status=application.application_status,
         application_date=application.application_date,
     )
 
@@ -144,17 +147,8 @@ def create_application(
     return new_application
 
 
-@app.get("/api/companies", response_model=list[CompanyResponse])
-def get_compnaies(db: Annotated[Session, Depends(get_db)]):
-    result = db.execute(select(models.Company))
-
-    companies = result.scalars().all()
-
-    return companies
-
-
 @app.delete("/api/applications/{application_id}", response_model=ApplicationResponse)
-def update_application_full(
+def delete_application(
     application_id: int,
     db: Annotated[Session, Depends(get_db)],
 ):
@@ -170,4 +164,89 @@ def update_application_full(
         )
 
     db.delete(application)
+    db.commit()
+
+
+@app.get("/api/companies", response_model=list[CompanyResponse])
+def get_companies(application_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Company))
+
+    companies = result.scalars().all()
+
+    return companies
+
+
+@app.get("/api/companies/{company_id}", response_model=CompanyResponse)
+def get_company(company_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Company).where(models.Company.id == company_id))
+
+    company = result.scalars().first()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Company not found"
+        )
+
+    return company
+
+
+@app.post("/api/companies", response_model=CompanyResponse)
+def create_company(
+    company_data: CompanyCreate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    result = db.execute(
+        select(models.Company).where(models.Company.name == company_data.name),
+    )
+    existing_company = result.scalars().first()
+    if existing_company:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists",
+        )
+
+    new_company = models.Company(name=company_data.name)
+    db.add(new_company)
+    db.commit()
+    db.refresh(new_company)
+    return new_company
+
+
+@app.put("/api/company/{company_id}", response_model=CompanyResponse)
+def update_company(
+    company_id: int,
+    company_data: CompanyCreate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    result = db.execute(select(models.Company).where(models.Company.id == company_id))
+
+    company = result.scalars().first()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
+    company.name = company_data.name
+
+    db.commit()
+    db.refresh(company)
+    return company
+
+
+@app.delete("/api/company/{company_id}", response_model=CompanyResponse)
+def delete_company(
+    company_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+    result = db.execute(select(models.Company).where(models.Company.id == company_id))
+
+    company = result.scalars().first()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
+    db.delete(company)
     db.commit()

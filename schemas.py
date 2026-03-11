@@ -47,8 +47,6 @@ class ApplicationResponse(Application):
 
 
 class ApplicationCreate(Application):
-    position: str
-    status: Status
     application_date: datetime
     company: str
 
