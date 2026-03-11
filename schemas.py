@@ -13,7 +13,7 @@ class Status(str, Enum):
 
 
 class Application(BaseModel):
-    position_title: str = Field(min_length=3)
+    position_title: str
     application_status: Status
 
 
@@ -51,3 +51,8 @@ class ApplicationCreate(Application):
     status: Status
     application_date: datetime
     company: str
+
+
+class ApplicationUpdate(Application):
+    position_title: str | None = Field(default=None)
+    application_status: str | None = Field(default=None)

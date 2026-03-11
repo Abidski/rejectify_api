@@ -6,7 +6,12 @@ from sqlalchemy.orm import Session
 
 import models
 from database import Base, engine, get_db
-from schemas import ApplicationCreate, ApplicationResponse, CompanyResponse
+from schemas import (
+    ApplicationCreate,
+    ApplicationResponse,
+    ApplicationUpdate,
+    CompanyResponse,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +40,58 @@ def get_application(application_id: int, db: Annotated[Session, Depends(get_db)]
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
     )
+
+
+@app.patch("/api/applications/{application_id}", response_model=ApplicationResponse)
+def update_application_partial(
+    application_id: int,
+    application_data: ApplicationUpdate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    result = db.execute(
+        select(models.Applications).where(models.Applications.id == application_id)
+    )
+
+    application = result.scalars().first()
+
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
+    data = application_data.model_dump(exclude_none=True)
+
+    for field, value in data:
+        setattr(application, field, value)
+
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+@app.put("/api/applications/{application_id}", response_model=ApplicationResponse)
+def update_application_full(
+    application_id: int,
+    application_data: ApplicationCreate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    result = db.execute(
+        select(models.Applications).where(models.Applications.id == application_id)
+    )
+
+    application = result.scalars().first()
+
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
+    application.position_title = application_data.position_title
+    application.application_status = application_data.application_status
+
+    db.commit()
+    db.refresh(application)
+    return application
 
 
 @app.post(
@@ -87,11 +144,6 @@ def create_application(
     return new_application
 
 
-@app.put("/api/applications/{application_id}", response_model=ApplicationResponse)
-def update_application():
-    return {"Hello": "World"}
-
-
 @app.get("/api/companies", response_model=list[CompanyResponse])
 def get_compnaies(db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Company))
@@ -99,3 +151,23 @@ def get_compnaies(db: Annotated[Session, Depends(get_db)]):
     companies = result.scalars().all()
 
     return companies
+
+
+@app.put("/api/applications/{application_id}", response_model=ApplicationResponse)
+def update_application_full(
+    application_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+    result = db.execute(
+        select(models.Applications).where(models.Applications.id == application_id)
+    )
+
+    application = result.scalars().first()
+
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Application not found"
+        )
+
+    db.delete(application)
+    db.commit()
