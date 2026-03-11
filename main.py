@@ -153,7 +153,7 @@ def get_compnaies(db: Annotated[Session, Depends(get_db)]):
     return companies
 
 
-@app.put("/api/applications/{application_id}", response_model=ApplicationResponse)
+@app.delete("/api/applications/{application_id}", response_model=ApplicationResponse)
 def update_application_full(
     application_id: int,
     db: Annotated[Session, Depends(get_db)],
